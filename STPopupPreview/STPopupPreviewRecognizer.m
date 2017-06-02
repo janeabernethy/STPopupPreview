@@ -13,7 +13,7 @@ CGFloat const STPopupPreviewActionSheetButtonHeight = 57;
 CGFloat const STPopupPreviewActionSheetSpacing = 10;
 CGFloat const STPopupPreviewShowActionsOffset = 30;
 
-@interface STPopupPreviewAction ()
+@interface STPopupPreviewAction ()<UIGestureRecognizerDelegate>
 
 @property (nonatomic, copy, readonly) void (^handler)(STPopupPreviewAction *, UIViewController *);
 
@@ -267,6 +267,7 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
 {
     if (!_longPressGesture) {
         _longPressGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(gestureAction:)];
+        _longPressGesture.delegate = self;
         _longPressGesture.minimumPressDuration = 0.3;
     }
     [_view removeGestureRecognizer:_longPressGesture];
@@ -297,9 +298,11 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
 
 #pragma mark - Gestures
 
+
 - (void)gestureAction:(UIGestureRecognizer *)gesture
 {
     NSAssert(gesture == _longPressGesture || _panGesture == _panGesture, @"Gesture is not expected");
+    
     switch (gesture.state) {
         case UIGestureRecognizerStateBegan: {
             if (gesture == _panGesture) { // Reset _startPointY if it's from _panGesture, make sure translationY is correctly calculated
@@ -313,7 +316,8 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
             }
             
             _popupController = [[STPopupController alloc] initWithRootViewController:previewViewController];
-            _popupController.containerView.layer.cornerRadius = 10;
+            //_popupController.containerView.layer.cornerRadius = 10;
+            
             _popupController.transitionStyle = STPopupTransitionStyleFade;
             _popupController.hidesCloseButton = YES;
             if (NSClassFromString(@"UIVisualEffectView")) {
@@ -326,7 +330,7 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
             
             UIViewController *presentingViewController = [_delegate presentingViewControllerForPopupPreviewRecognizer:self];
             [_popupController presentInViewController:presentingViewController completion:^{
-                _popupController.containerView.userInteractionEnabled = NO;
+                _popupController.containerView.userInteractionEnabled = YES;
                 _state = STPopupPreviewRecognizerStatePreviewing;
                 _startPointY = [gesture locationInView:_popupController.backgroundView].y;
                 
@@ -349,8 +353,10 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
                 }
                 
                 _panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(gestureAction:)];
-                [_popupController.backgroundView addGestureRecognizer:_panGesture];
+                _panGesture.delegate = self;
+                [_popupController.scrollView addGestureRecognizer:_panGesture];
                 _tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(containerViewDidTap)];
+                _tapGesture.delegate = self;
                 [_popupController.backgroundView addGestureRecognizer:_tapGesture];
             }];
         }
@@ -373,6 +379,7 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
                 
                 CGFloat availableHeight = _popupController.backgroundView.frame.size.height - _popupController.containerView.frame.origin.y - _popupController.containerView.frame.size.height;
                 if (_state != STPopupPreviewRecognizerStateShowingActions) {
+                    
                     [UIView animateWithDuration:0.35 delay:0 usingSpringWithDamping:1 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
                         if (availableHeight >= _actionSheet.frame.size.height) {
                             _actionSheet.transform = CGAffineTransformIdentity;
@@ -385,10 +392,13 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
                 else {
                     if (availableHeight >= _actionSheet.frame.size.height) {
                         _actionSheet.transform = CGAffineTransformIdentity;
+                        _popupController.pageControl.alpha = 1.0;
                     }
                     else {
                         _actionSheet.transform = CGAffineTransformMakeTranslation(0, _actionSheet.frame.size.height - availableHeight);
+                        _popupController.pageControl.alpha = 0.0;
                     }
+                    
                 }
                 _state = STPopupPreviewRecognizerStateShowingActions;
             }
@@ -409,11 +419,13 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
                 CGFloat translationY = availableHeight - _popupController.containerView.frame.size.height - (_popupController.backgroundView.frame.size.height - _popupController.containerView.frame.size.height) / 2;
                 [UIView animateWithDuration:0.35 delay:0 usingSpringWithDamping:1 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
                     if (translationY < 0) {
+                        _popupController.pageControl.alpha = 1.0;
                         _popupController.containerView.transform = CGAffineTransformMakeTranslation(0, translationY);
                     }
                     else {
                         _popupController.containerView.transform = CGAffineTransformIdentity;
                     }
+                    
                     _arrowView.transform = _popupController.containerView.transform;
                     _actionSheet.transform = CGAffineTransformIdentity;
                 } completion:nil];
@@ -427,6 +439,18 @@ CGFloat const STPopupPreviewShowActionsOffset = 30;
             break;
     }
 }
+
+-(BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
+{
+    return YES;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer
+       shouldReceiveTouch:(UITouch *)touch {
+    NSLog(@"%f", _popupController.isScrolling);
+    return !_popupController.isScrolling;
+}
+
 
 - (void)containerViewDidTap
 {

@@ -68,7 +68,7 @@ typedef NS_ENUM(NSUInteger, STPopupPreviewRecognizerState) {
      */
     STPopupPreviewRecognizerStatePreviewing,
     /**
-     Preview actions are showed(either part of or whole of the action sheet). 
+     Preview actions are showed(either part of or whole of the action sheet).
      */
     STPopupPreviewRecognizerStateShowingActions
 };
