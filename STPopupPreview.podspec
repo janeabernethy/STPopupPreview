@@ -17,5 +17,4 @@ Pod::Spec.new do |s|
 
   s.source_files = "STPopupPreview/*.{h,m}"
   s.public_header_files = "STPopupPreview/*.h"
-  s.dependency 'STPopup', ':git => "https://github.com/janeabernethy/STPopup.git"'
 end
